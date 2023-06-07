@@ -1,8 +1,8 @@
 package com.github.alunegov.ble2.android
 
 import android.os.Bundle
-import android.service.autofill.OnClickAction
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,22 +13,23 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Alignment.Companion.CenterVertically
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -54,46 +55,59 @@ fun Root() {
 
     NavHost(navController = navController, startDestination = "A") {
         composable("A") {
-            Form1({ navController.navigate("B") })
+            Form1Screen({ navController.navigate("B") })
         }
         composable("B") {
-            Form2({ navController.popBackStack() })
+            val viewModel = viewModel<Form2ViewModel>()
+
+            DisposableEffect(true) {
+                viewModel.init()
+                onDispose {
+                    viewModel.deinit()
+                }
+            }
+
+            val uiState = viewModel.uiState
+
+            Form2Screen(
+                uiState,
+                { viewModel.start() },
+                { viewModel.stop() },
+                { viewModel.showResults() },
+                { viewModel.hideResults() },
+                //{ navController.popBackStack() },
+            )
         }
     }
 }
 
 @Composable
-fun Form1(onClick: () -> Unit) {
+fun Form1Screen(onClick: () -> Unit) {
     val i1 = remember { mutableStateOf(381.7f.toString()) }
     val i2 = remember { mutableStateOf(0.45f.toString()) }
     val i3 = remember { mutableStateOf("") }
 
     Column(
-        modifier = Modifier.fillMaxWidth().padding(8.dp, 0.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp, 0.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = "Bluetooth связь",
-                //modifier = Modifier.align(Alignment.CenterVertically),
-            )
+            Text("Bluetooth связь")
 
             //Spacer(Modifier.size(16.dp))
         }
 
-        Text(
-            text = "Введите данные:",
-            //modifier = Modifier.align(Alignment.CenterVertically),
-        )
+        Text("Введите данные:")
 
         Row(
             modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = "I (ВН) ном., А",
-                modifier = Modifier.align(Alignment.CenterVertically).weight(1.0f),
-            )
+            Text("I (ВН) ном., А", Modifier.weight(1.0f))
 
             Spacer(Modifier.size(16.dp))
 
@@ -106,11 +120,9 @@ fun Form1(onClick: () -> Unit) {
 
         Row(
             modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = "Ixx (ВН), %",
-                modifier = Modifier.align(Alignment.CenterVertically).weight(1.0f),
-            )
+            Text("Ixx (ВН), %", Modifier.weight(1.0f))
 
             Spacer(Modifier.size(16.dp))
 
@@ -133,11 +145,9 @@ fun Form1(onClick: () -> Unit) {
 
         Row(
             modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = "I разм. нач., А",
-                modifier = Modifier.align(Alignment.CenterVertically).weight(1.0f),
-            )
+            Text("I разм. нач., А", Modifier.weight(1.0f))
 
             Spacer(Modifier.size(16.dp))
 
@@ -148,7 +158,7 @@ fun Form1(onClick: () -> Unit) {
             )
         }
 
-        Button(onClick = { onClick() }) {
+        Button(onClick = onClick) {
             Text("Продолжить")
         }
     }
@@ -156,128 +166,255 @@ fun Form1(onClick: () -> Unit) {
 
 @Preview(showBackground = true)
 @Composable
-fun Form1Preview() {
+fun Form1ScreenPreview() {
     Ble2Theme {
-        Form1({})
+        Form1Screen({})
     }
 }
 
 @Composable
-fun Form2(onClick: () -> Unit) {
+fun Form2Screen(
+    uiState: Form2UiState,
+    onStartClick: () -> Unit,
+    onStopClick: () -> Unit,
+    onShowResultsClick: () -> Unit,
+    onHideResultsClick: () -> Unit,
+) {
+    if (!uiState.showingResults) {
+        Form2MainScreen(
+            uiState,
+            onStartClick,
+            onStopClick,
+            onShowResultsClick,
+        )
+    } else {
+        Form2ResultsScreen(
+            items = uiState.results,
+            duration = uiState.resultsDuration,
+            onHideResultsClick,
+        )
+    }
+}
+
+@Composable
+fun Form2MainScreen(
+    uiState: Form2UiState,
+    onStartClick: () -> Unit,
+    onStopClick: () -> Unit,
+    onShowResultsClick: () -> Unit,
+) {
     Column(
-        modifier = Modifier.fillMaxWidth().padding(8.dp, 0.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp, 0.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedTextField(
-                value = "1.0",
+                value = uiState.startingCurrent.toString(),
                 onValueChange = {},
-                modifier = Modifier.width(100.dp),
+                modifier = Modifier.width(150.dp),
                 readOnly = true,
             )
 
             Spacer(Modifier.size(16.dp))
 
-            Text(
-                text = "Начальный ток",
-                modifier = Modifier.align(Alignment.CenterVertically),
-            )
+            Text("Начальный ток, А")
         }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedTextField(
-                value = "1.0",
+                value = uiState.cycleNum.toString(),
                 onValueChange = {},
-                modifier = Modifier.width(100.dp),
+                modifier = Modifier.width(150.dp),
                 readOnly = true,
             )
 
             Spacer(Modifier.size(16.dp))
 
-            Text(
-                text = "Номер цикла",
-                modifier = Modifier.align(Alignment.CenterVertically),
-            )
+            Text("Номер цикла")
         }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedTextField(
-                value = "1.0",
+                value = uiState.currentUp.toString(),
                 onValueChange = {},
-                modifier = Modifier.width(100.dp),
+                modifier = Modifier.width(150.dp),
                 readOnly = true,
             )
 
             Spacer(Modifier.size(16.dp))
 
-            Text(
-                text = "Заданный ток",
-                modifier = Modifier.align(Alignment.CenterVertically),
-            )
+            Text("Заданный ток, А")
         }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedTextField(
-                value = "1.0",
+                value = uiState.polarity.toString(),
                 onValueChange = {},
-                modifier = Modifier.width(100.dp),
+                modifier = Modifier.width(150.dp),
                 readOnly = true,
             )
 
             Spacer(Modifier.size(16.dp))
 
-            Text(
-                text = "Полярность",
-                modifier = Modifier.align(Alignment.CenterVertically),
-            )
+            Text("Полярность")
         }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedTextField(
-                value = "1.0",
+                value = uiState.current.toString(),
                 onValueChange = {},
-                modifier = Modifier.width(100.dp),
+                modifier = Modifier.width(150.dp),
                 readOnly = true,
             )
 
             Spacer(Modifier.size(16.dp))
 
-            Text(
-                text = "Измеренный ток",
-                modifier = Modifier.align(Alignment.CenterVertically),
-            )
+            Text("Измеренный ток, А")
         }
 
-        Text("Идёт размагничивание")
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(uiState.state, Modifier.weight(1.0f))
+
+            Button(
+                onClick = onShowResultsClick,
+                enabled = uiState.resultsAvail,
+            ) {
+                Text("Сводка")
+            }
+        }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
+            horizontalArrangement = Arrangement.SpaceAround,
         ) {
-            Button(onClick = {}) {
+            Button(
+                onClick = onStartClick,
+                enabled = uiState.startEnabled,
+            ) {
                 Text("Запуск")
             }
 
-            Button(onClick = { onClick() }) {
+            Button(
+                onClick = onStopClick,
+                enabled = uiState.stopEnabled,
+            ) {
                 Text("Стоп")
             }
         }
+
+        if (uiState.errorText.isNotEmpty()) {
+            Text(uiState.errorText, color = MaterialTheme.colorScheme.error)
+        }
+    }
+
+    BackHandler(false) {
+        onStopClick()
     }
 }
 
 @Preview(showBackground = true)
 @Composable
-fun Form2Preview() {
+fun Form2ScreenMainPreview() {
     Ble2Theme {
-        Form2({})
+        Form2MainScreen(
+            Form2UiState(state = "Идёт размагничивание", errorText = "Error"),
+            {},
+            {},
+            {},
+        )
+    }
+}
+
+@Composable
+fun Form2ResultsScreen(
+    items: List<CycleStat>,
+    duration: Long,
+    onHideResultsClick: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp, 0.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Цикл", Modifier.weight(1.0f), textAlign = TextAlign.Center)
+
+            Text("Заданный ток, А", Modifier.weight(1.0f), textAlign = TextAlign.Center)
+
+            Text("Установленный ток, А", Modifier.weight(1.0f), textAlign = TextAlign.Center)
+
+            Text("Время цикла, сек", Modifier.weight(1.0f), textAlign = TextAlign.Center)
+        }
+
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            items(items) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(it.cycle.num.toString(), Modifier.weight(1.0f), textAlign = TextAlign.Center)
+
+                    Text(it.cycle.currentUp.toString(), Modifier.weight(1.0f), textAlign = TextAlign.Center)
+
+                    Text(it.current.toString(), Modifier.weight(1.0f), textAlign = TextAlign.Center)
+
+                    Text(it.duration.toString(), Modifier.weight(1.0f), textAlign = TextAlign.Center)
+                }
+            }
+
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Общее время, сек:", Modifier.weight(3.0f))
+
+                    Text(duration.toString(), Modifier.weight(1.0f), textAlign = TextAlign.Center)
+                }
+            }
+        }
+    }
+
+    BackHandler(true) {
+        onHideResultsClick()
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun Form2ResultsScreenPreview() {
+    Ble2Theme {
+        Form2ResultsScreen(
+            listOf(
+                CycleStat(Cycle(1u, 3.435f, false),3.434f, 10L),
+                CycleStat(Cycle(2u, 2.405f, true),2.404f, 20L),
+                CycleStat(Cycle(3u, 1.683f, false),1.683f, 30L),
+            ),
+            100500L,
+            {},
+        )
     }
 }
