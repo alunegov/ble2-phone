@@ -22,6 +22,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -49,15 +50,62 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+
+/**
+ * Объект для работы с BT-адаптером.
+ */
+val gBleService = BleService()
+
 @Composable
 fun Root() {
     val navController = rememberNavController();
 
-    NavHost(navController = navController, startDestination = "A") {
-        composable("A") {
-            Form1Screen({ navController.navigate("B") })
+    NavHost(navController = navController, startDestination = "form1") {
+        composable("form1") {
+            val viewModel = viewModel<Form1ViewModel>(factory = form1ViewModelFactory(gBleService, "84:CC:A8:47:9B:56"))
+
+            LaunchedEffect(viewModel.uiState.saveState) {
+                if (viewModel.uiState.saveState) {
+                    viewModel.resetSaveState()
+                    navController.navigate("form2")
+                }
+            }
+
+            DisposableEffect(true) {
+                viewModel.init()
+                onDispose {}
+            }
+
+            Form1Screen(
+                viewModel.uiState,
+                { i1, i2 -> viewModel.calcStartCurrent(i1, i2) },
+                { navController.navigate("conf") },
+                { startCurrent -> viewModel.further(startCurrent) },
+            )
         }
-        composable("B") {
+
+        composable("conf") {
+            val viewModel = viewModel<ConfViewModel>(factory = confViewModelFactory(gBleService, "84:CC:A8:47:9B:56"))
+
+            LaunchedEffect(viewModel.uiState.saveState) {
+                if (viewModel.uiState.saveState) {
+                    viewModel.resetSaveState()
+                    navController.popBackStack()
+                }
+            }
+
+            DisposableEffect(true) {
+                viewModel.init()
+                onDispose {}
+            }
+
+            ConfScreen(
+                viewModel.uiState,
+                { kp, ki, kd -> viewModel.setConf(kp, ki, kd) },
+            )
+        }
+
+        composable("form2") {
             val viewModel = viewModel<Form2ViewModel>()
 
             DisposableEffect(true) {
@@ -67,354 +115,13 @@ fun Root() {
                 }
             }
 
-            val uiState = viewModel.uiState
-
             Form2Screen(
-                uiState,
+                viewModel.uiState,
                 { viewModel.start() },
                 { viewModel.stop() },
                 { viewModel.showResults() },
                 { viewModel.hideResults() },
-                //{ navController.popBackStack() },
             )
         }
-    }
-}
-
-@Composable
-fun Form1Screen(onClick: () -> Unit) {
-    val i1 = remember { mutableStateOf(381.7f.toString()) }
-    val i2 = remember { mutableStateOf(0.45f.toString()) }
-    val i3 = remember { mutableStateOf("") }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp, 0.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("Bluetooth связь")
-
-            //Spacer(Modifier.size(16.dp))
-        }
-
-        Text("Введите данные:")
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("I (ВН) ном., А", Modifier.weight(1.0f))
-
-            Spacer(Modifier.size(16.dp))
-
-            OutlinedTextField(
-                value = i1.value,
-                onValueChange = { i1.value = it },
-                modifier = Modifier.width(150.dp),
-            )
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("Ixx (ВН), %", Modifier.weight(1.0f))
-
-            Spacer(Modifier.size(16.dp))
-
-            OutlinedTextField(
-                value = i2.value,
-                onValueChange = { i2.value = it },
-                modifier = Modifier.width(150.dp),
-            )
-        }
-
-        Button(
-            onClick = {
-                val i1v = i1.value.toFloat()
-                val i2v = i2.value.toFloat()
-                i3.value = ((i2v * i1v) / 100 * 2).toString()
-            },
-        ) {
-            Text("Расчитать")
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("I разм. нач., А", Modifier.weight(1.0f))
-
-            Spacer(Modifier.size(16.dp))
-
-            OutlinedTextField(
-                value = i3.value,
-                onValueChange = { i3.value = it },
-                modifier = Modifier.width(150.dp),
-            )
-        }
-
-        Button(onClick = onClick) {
-            Text("Продолжить")
-        }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun Form1ScreenPreview() {
-    Ble2Theme {
-        Form1Screen({})
-    }
-}
-
-@Composable
-fun Form2Screen(
-    uiState: Form2UiState,
-    onStartClick: () -> Unit,
-    onStopClick: () -> Unit,
-    onShowResultsClick: () -> Unit,
-    onHideResultsClick: () -> Unit,
-) {
-    if (!uiState.showingResults) {
-        Form2MainScreen(
-            uiState,
-            onStartClick,
-            onStopClick,
-            onShowResultsClick,
-        )
-    } else {
-        Form2ResultsScreen(
-            items = uiState.results,
-            duration = uiState.resultsDuration,
-            onHideResultsClick,
-        )
-    }
-}
-
-@Composable
-fun Form2MainScreen(
-    uiState: Form2UiState,
-    onStartClick: () -> Unit,
-    onStopClick: () -> Unit,
-    onShowResultsClick: () -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp, 0.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            OutlinedTextField(
-                value = uiState.startingCurrent.toString(),
-                onValueChange = {},
-                modifier = Modifier.width(150.dp),
-                readOnly = true,
-            )
-
-            Spacer(Modifier.size(16.dp))
-
-            Text("Начальный ток, А")
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            OutlinedTextField(
-                value = uiState.cycleNum.toString(),
-                onValueChange = {},
-                modifier = Modifier.width(150.dp),
-                readOnly = true,
-            )
-
-            Spacer(Modifier.size(16.dp))
-
-            Text("Номер цикла")
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            OutlinedTextField(
-                value = uiState.currentUp.toString(),
-                onValueChange = {},
-                modifier = Modifier.width(150.dp),
-                readOnly = true,
-            )
-
-            Spacer(Modifier.size(16.dp))
-
-            Text("Заданный ток, А")
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            OutlinedTextField(
-                value = uiState.polarity.toString(),
-                onValueChange = {},
-                modifier = Modifier.width(150.dp),
-                readOnly = true,
-            )
-
-            Spacer(Modifier.size(16.dp))
-
-            Text("Полярность")
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            OutlinedTextField(
-                value = uiState.current.toString(),
-                onValueChange = {},
-                modifier = Modifier.width(150.dp),
-                readOnly = true,
-            )
-
-            Spacer(Modifier.size(16.dp))
-
-            Text("Измеренный ток, А")
-        }
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(uiState.state, Modifier.weight(1.0f))
-
-            Button(
-                onClick = onShowResultsClick,
-                enabled = uiState.resultsAvail,
-            ) {
-                Text("Сводка")
-            }
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceAround,
-        ) {
-            Button(
-                onClick = onStartClick,
-                enabled = uiState.startEnabled,
-            ) {
-                Text("Запуск")
-            }
-
-            Button(
-                onClick = onStopClick,
-                enabled = uiState.stopEnabled,
-            ) {
-                Text("Стоп")
-            }
-        }
-
-        if (uiState.errorText.isNotEmpty()) {
-            Text(uiState.errorText, color = MaterialTheme.colorScheme.error)
-        }
-    }
-
-    BackHandler(false) {
-        onStopClick()
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun Form2ScreenMainPreview() {
-    Ble2Theme {
-        Form2MainScreen(
-            Form2UiState(state = "Идёт размагничивание", errorText = "Error"),
-            {},
-            {},
-            {},
-        )
-    }
-}
-
-@Composable
-fun Form2ResultsScreen(
-    items: List<CycleStat>,
-    duration: Long,
-    onHideResultsClick: () -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp, 0.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("Цикл", Modifier.weight(1.0f), textAlign = TextAlign.Center)
-
-            Text("Заданный ток, А", Modifier.weight(1.0f), textAlign = TextAlign.Center)
-
-            Text("Установленный ток, А", Modifier.weight(1.0f), textAlign = TextAlign.Center)
-
-            Text("Время цикла, сек", Modifier.weight(1.0f), textAlign = TextAlign.Center)
-        }
-
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            items(items) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(it.cycle.num.toString(), Modifier.weight(1.0f), textAlign = TextAlign.Center)
-
-                    Text(it.cycle.currentUp.toString(), Modifier.weight(1.0f), textAlign = TextAlign.Center)
-
-                    Text(it.current.toString(), Modifier.weight(1.0f), textAlign = TextAlign.Center)
-
-                    Text(it.duration.toString(), Modifier.weight(1.0f), textAlign = TextAlign.Center)
-                }
-            }
-
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text("Общее время, сек:", Modifier.weight(3.0f))
-
-                    Text(duration.toString(), Modifier.weight(1.0f), textAlign = TextAlign.Center)
-                }
-            }
-        }
-    }
-
-    BackHandler(true) {
-        onHideResultsClick()
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun Form2ResultsScreenPreview() {
-    Ble2Theme {
-        Form2ResultsScreen(
-            listOf(
-                CycleStat(Cycle(1u, 3.435f, false),3.434f, 10L),
-                CycleStat(Cycle(2u, 2.405f, true),2.404f, 20L),
-                CycleStat(Cycle(3u, 1.683f, false),1.683f, 30L),
-            ),
-            100500L,
-            {},
-        )
     }
 }

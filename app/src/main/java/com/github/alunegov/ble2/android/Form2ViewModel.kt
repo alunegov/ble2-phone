@@ -17,10 +17,8 @@ import kotlin.Exception
 import kotlin.time.ExperimentalTime
 import kotlin.time.TimeSource
 
-private const val TAG = "Form2ViewModel"
-
 data class Form2UiState(
-    val startingCurrent: Float = 1.0f,
+    val startCurrent: Float = 1.0f,
     val cycleNum: UInt = 1u,
     val currentUp: Float = 0.0f,
     val polarity: Boolean = false,
@@ -75,12 +73,14 @@ class Form2ViewModel : ViewModel() {
             try {
                 conn.connect()
 
+                val startCurrent = conn.getStartCurrent()
                 val state = conn.getState()
                 val startEnabled = true
                 val stopEnabled = false
                 val idle = true
                 if (idle) {
                     uiState = uiState.copy(
+                        startCurrent = startCurrent,
                         state = state.toString(),
                         startEnabled = startEnabled,
                         stopEnabled = stopEnabled,
@@ -90,6 +90,7 @@ class Form2ViewModel : ViewModel() {
                     val cycle = conn.getCycle()
                     val current = conn.getCurrent()
                     uiState = uiState.copy(
+                        startCurrent = startCurrent,
                         cycleNum = cycle.num,
                         currentUp = cycle.currentUp,
                         polarity = cycle.polarity,
@@ -240,5 +241,9 @@ class Form2ViewModel : ViewModel() {
 
     fun hideResults() {
         uiState = uiState.copy(showingResults = false)
+    }
+
+    companion object {
+        private const val TAG = "Form2ViewModel"
     }
 }

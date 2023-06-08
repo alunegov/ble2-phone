@@ -9,30 +9,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
-internal const val SERVICE_UUID = "ABAEBF19-EDE9-497D-A91D-0EF8B66A9904"
-internal const val CONF_CHR_UUID = "ABAEBF19-EDE9-497D-A91D-0EF8B66A9914"
-internal const val CMD_CHR_UUID = "ABAEBF19-EDE9-497D-A91D-0EF8B66A9924"
-internal const val STATE_CHR_UUID = "ABAEBF19-EDE9-497D-A91D-0EF8B66A9934"
-internal const val CYCLE_CHR_UUID = "ABAEBF19-EDE9-497D-A91D-0EF8B66A9944"
-internal const val CURRENT_CHR_UUID = "ABAEBF19-EDE9-497D-A91D-0EF8B66A9954"
-
-private val StateChr = characteristicOf(
-    service = SERVICE_UUID,
-    characteristic = STATE_CHR_UUID,
-)
-
-private val CycleChr = characteristicOf(
-    service = SERVICE_UUID,
-    characteristic = CYCLE_CHR_UUID,
-)
-
-private val CurrentChr = characteristicOf(
-    service = SERVICE_UUID,
-    characteristic = CURRENT_CHR_UUID,
-)
-
 data class Conf(
-    val startingCurrent: Float,
     val kp: Float,
     val ki: Float,
     val kd: Float,
@@ -44,6 +21,14 @@ data class Cycle(
     val polarity: Boolean = false,
 )
 
+enum class State {
+    NoVoltageOffset,  // Не установлено смещение напряжения АЦП
+    MakeSchema,       // соберите цепь размагничивания
+    CantSetCurent,    // не удалось установить требуемый ток, возможно большое сопротивление нагрузки
+    CyclesEnded,      // Размагничивание завершено
+    CyclesAborted,
+}
+
 class DeviceConn(
     private val periph: Peripheral,
 ) {
@@ -52,6 +37,10 @@ class DeviceConn(
     val cycle: Flow<Cycle> = periph.observe(CycleChr).map { it.cycle }
 
     val current: Flow<Float> = periph.observe(CurrentChr).map { it.current }
+
+    fun getName(): String? {
+        return periph.name
+    }
 
     suspend fun connect() {
         periph.connect()
@@ -64,10 +53,9 @@ class DeviceConn(
     }
 
     suspend fun setConf(conf: Conf) {
-        val confSize = 16
+        val confSize = 12
 
         val raw = ByteBuffer.allocate(confSize).order(ByteOrder.LITTLE_ENDIAN).run {
-            putFloat(conf.startingCurrent)
             putFloat(conf.kp)
             putFloat(conf.ki)
             putFloat(conf.kd)
@@ -76,6 +64,19 @@ class DeviceConn(
         }
 
         periph.write(characteristicOf(SERVICE_UUID, CONF_CHR_UUID), raw, WriteType.WithResponse)
+    }
+
+    suspend fun getStartCurrent(): Float {
+        val raw = periph.read(characteristicOf(SERVICE_UUID, START_CURRENT_CHR_UUID))
+        if (raw.isEmpty()) {
+            return 0.0f
+        }
+        return raw.current
+    }
+    suspend fun setStartCurrent(startCurrent: Float) {
+        val raw = ByteBuffer.allocate(Float.SIZE_BYTES).order(ByteOrder.LITTLE_ENDIAN).putFloat(startCurrent).array()
+
+        periph.write(characteristicOf(SERVICE_UUID, START_CURRENT_CHR_UUID), raw, WriteType.WithResponse)
     }
 
     suspend fun start() {
@@ -107,18 +108,44 @@ class DeviceConn(
         }
         return raw.current
     }
-}
 
-private inline val ByteArray.state: UByte
-    get() = ByteBuffer.wrap(this).order(ByteOrder.LITTLE_ENDIAN).get().toUByte()
+    companion object {
+        internal const val SERVICE_UUID = "ABAEBF19-EDE9-497D-A91D-0EF8B66A9904"
+        internal const val CONF_CHR_UUID = "ABAEBF19-EDE9-497D-A91D-0EF8B66A9914"
+        internal const val START_CURRENT_CHR_UUID = "ABAEBF19-EDE9-497D-A91D-0EF8B66A9924"
+        internal const val CMD_CHR_UUID = "ABAEBF19-EDE9-497D-A91D-0EF8B66A9934"
+        internal const val STATE_CHR_UUID = "ABAEBF19-EDE9-497D-A91D-0EF8B66A9944"
+        internal const val CYCLE_CHR_UUID = "ABAEBF19-EDE9-497D-A91D-0EF8B66A9954"
+        internal const val CURRENT_CHR_UUID = "ABAEBF19-EDE9-497D-A91D-0EF8B66A9964"
 
-private inline val ByteArray.cycle: Cycle
-    get() = ByteBuffer.wrap(this).order(ByteOrder.LITTLE_ENDIAN).let {
-        val num = it.getInt().toUInt()
-        val current = it.getFloat()
-        val polarity = it.get() != 0.toByte()
-        Cycle(num, current, polarity)
+        private val StateChr = characteristicOf(
+            service = SERVICE_UUID,
+            characteristic = STATE_CHR_UUID,
+        )
+
+        private val CycleChr = characteristicOf(
+            service = SERVICE_UUID,
+            characteristic = CYCLE_CHR_UUID,
+        )
+
+        private val CurrentChr = characteristicOf(
+            service = SERVICE_UUID,
+            characteristic = CURRENT_CHR_UUID,
+        )
+
+        private inline val ByteArray.state: UByte
+            get() = ByteBuffer.wrap(this).order(ByteOrder.LITTLE_ENDIAN).get().toUByte()
+
+        private inline val ByteArray.cycle: Cycle
+            get() = ByteBuffer.wrap(this).order(ByteOrder.LITTLE_ENDIAN).let {
+                val num = it.getInt().toUInt()
+                val current = it.getFloat()
+                val polarity = it.get() != 0.toByte()
+                Cycle(num, current, polarity)
+            }
+
+        private inline val ByteArray.current: Float
+            get() = ByteBuffer.wrap(this).order(ByteOrder.LITTLE_ENDIAN).getFloat()
+
     }
-
-private inline val ByteArray.current: Float
-    get() = ByteBuffer.wrap(this).order(ByteOrder.LITTLE_ENDIAN).getFloat()
+}
