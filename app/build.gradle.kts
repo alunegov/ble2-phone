@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -12,7 +15,7 @@ android {
         minSdk = 24
         targetSdk = 33
         versionCode = 1
-        versionName = "1.0"
+        versionName = "0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -20,10 +23,30 @@ android {
         }
     }
 
+    signingConfigs {
+        register("release") {
+            val keystorePropertiesFile = file("../keystore_release.properties")
+
+            if (!keystorePropertiesFile.exists()) {
+                logger.warn("Release builds may not work: signing config not found.")
+                return@register
+            }
+
+            val keystoreProperties = Properties()
+            keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+
+            keyAlias = keystoreProperties["keyAlias"] as String
+            keyPassword = keystoreProperties["keyPassword"] as String
+            storeFile = file(keystoreProperties["storeFile"] as String)
+            storePassword = keystoreProperties["storePassword"] as String
+        }
+    }
+
     buildTypes {
         getByName("release") {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
@@ -60,6 +83,8 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.1")
     implementation("androidx.navigation:navigation-compose:2.5.3")
+    implementation("com.google.accompanist:accompanist-permissions:0.30.1")
+    implementation("com.google.accompanist:accompanist-systemuicontroller:0.30.1")
     implementation("com.juul.kable:core:0.23.0")
 
     testImplementation("junit:junit:4.13.2")

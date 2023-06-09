@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">Ble2</string>
+    <string name="unknown_server_name">Unknown</string>
+    <string name="server_rssi">%d dB</string>
+    <string name="request_permission">Request permission</string>
+    <string name="permission_rationale">The location is important for this app. Please grant the permission.</string>
+    <string name="permission_denied">Location permission denied. Please grant the permission.</string>
 </resources>

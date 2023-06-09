@@ -1,32 +1,31 @@
 package com.github.alunegov.ble2.android
 
+import android.content.Context
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -35,34 +34,153 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.github.alunegov.ble2.android.ui.theme.Ble2Theme
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
 
-class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent {
-            Ble2Theme {
-                // A surface container using the 'background' color from the theme
-                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    Root()
-                }
-            }
-        }
-    }
-}
+private const val TAG = "MainActivity"
 
+/**
+ * MAC-адрес выбранного сервера в окне Список серверов.
+ */
+// TODO: pass via nav args
+var gAddress: String = "85:CC:A8:47:9B:56"  //"84:CC:A8:47:9B:56"
 
 /**
  * Объект для работы с BT-адаптером.
  */
 val gBleService = BleService()
 
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        val sharedPref = getPreferences(Context.MODE_PRIVATE)
+        gAddress = sharedPref.getString("deviceId", gAddress) ?: gAddress
+
+        setContent {
+            Ble2Theme {
+                /*val systemUiController = rememberSystemUiController()
+                val useDarkIcons = !isSystemInDarkTheme()
+
+                DisposableEffect(systemUiController, useDarkIcons) {
+                    systemUiController.setSystemBarsColor(
+                        color = Color.Transparent,
+                        darkIcons = useDarkIcons,
+                    )
+
+                    onDispose {}
+                }*/
+
+                // A surface container using the 'background' color from the theme
+                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    RootWithLocationPermission(gBleService)
+                }
+            }
+        }
+    }
+
+    override fun onPause() {
+        val sharedPref = getPreferences(Context.MODE_PRIVATE)
+        sharedPref.edit().putString("deviceId", gAddress).apply()
+
+        super.onPause()
+    }
+}
+
+/**
+ * Основное окно приложения. Реализует работу с разрешениями.
+ *
+ * @param bleService Реализация [BleService].
+ * @param navigateToSettingsScreen Обработчик перехода к настройкам приложения.
+ */
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun Root() {
+fun RootWithLocationPermission(bleService: BleService) {
+    // не используем doNotShowRationale, п.ч. ble/location основа всей нашей функциональности
+
+    val locationPermissionState = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        rememberMultiplePermissionsState(
+            listOf(
+                android.Manifest.permission.BLUETOOTH_SCAN,
+                android.Manifest.permission.BLUETOOTH_CONNECT,
+            )
+        )
+    } else {
+        rememberMultiplePermissionsState(
+            listOf(
+                android.Manifest.permission.ACCESS_FINE_LOCATION,
+            )
+        )
+    }
+
+    if (locationPermissionState.allPermissionsGranted) {
+        RootWithNavigation(bleService)
+    } else {
+        val textToShow = if (locationPermissionState.shouldShowRationale) {
+            // If the user has denied the permission but the rationale can be shown,
+            // then gently explain why the app requires this permission
+            stringResource(R.string.permission_rationale)
+        } else {
+            // If it's the first time the user lands on this feature, or the user
+            // doesn't want to be asked again for this permission, explain that the
+            // permission is required
+            stringResource(R.string.permission_denied)
+        }
+        PermissionNotGranted(
+            textToShow,
+            { locationPermissionState.launchMultiplePermissionRequest() },
+        )
+    }
+}
+
+@Composable
+private fun PermissionNotGranted(
+    text: String,
+    onRequestPermission: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(8.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = text,
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.headlineSmall,
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        Button(
+            onClick = onRequestPermission,
+            modifier = Modifier.widthIn(250.dp),
+        ) {
+            Text(stringResource(R.string.request_permission))
+        }
+    }
+}
+
+@Preview(locale = "ru", showBackground = true)
+@Composable
+fun PermissionNotGrantedPreview() {
+    Ble2Theme {
+        PermissionNotGranted(
+            stringResource(R.string.permission_rationale),
+            {},
+        )
+    }
+}
+
+@Composable
+fun RootWithNavigation(bleService: BleService) {
     val navController = rememberNavController();
 
     NavHost(navController = navController, startDestination = "form1") {
         composable("form1") {
-            val viewModel = viewModel<Form1ViewModel>(factory = form1ViewModelFactory(gBleService, "84:CC:A8:47:9B:56"))
+            val viewModel = viewModel<Form1ViewModel>(factory = form1ViewModelFactory(bleService, gAddress))
 
             LaunchedEffect(viewModel.uiState.saveState) {
                 if (viewModel.uiState.saveState) {
@@ -72,20 +190,40 @@ fun Root() {
             }
 
             DisposableEffect(true) {
-                viewModel.init()
+                viewModel.ensureDevice(gAddress)
                 onDispose {}
             }
 
             Form1Screen(
                 viewModel.uiState,
-                { i1, i2 -> viewModel.calcStartCurrent(i1, i2) },
+                { navController.navigate("select_device") },
                 { navController.navigate("conf") },
+                { i1, i2 -> viewModel.calcStartCurrent(i1, i2) },
                 { startCurrent -> viewModel.further(startCurrent) },
             )
         }
 
+        composable("select_device") {
+            val viewModel = viewModel<SelectDeviceViewModel>(factory = selectDeviceViewModelFactory(bleService))
+
+            DisposableEffect(true) {
+                viewModel.startScan()
+                onDispose {
+                    viewModel.stopScan()
+                }
+            }
+
+            SelectDeviceScreen(
+                viewModel.uiState.collectAsState().value,  // TODO: WTF
+                {
+                    gAddress = it
+                    navController.popBackStack()
+                },
+            )
+        }
+
         composable("conf") {
-            val viewModel = viewModel<ConfViewModel>(factory = confViewModelFactory(gBleService, "84:CC:A8:47:9B:56"))
+            val viewModel = viewModel<ConfViewModel>(factory = confViewModelFactory(bleService, gAddress))
 
             LaunchedEffect(viewModel.uiState.saveState) {
                 if (viewModel.uiState.saveState) {
@@ -106,7 +244,7 @@ fun Root() {
         }
 
         composable("form2") {
-            val viewModel = viewModel<Form2ViewModel>()
+            val viewModel = viewModel<Form2ViewModel>(factory = form2ViewModelFactory(bleService, gAddress))
 
             DisposableEffect(true) {
                 viewModel.init()

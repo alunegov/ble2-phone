@@ -25,7 +25,7 @@ data class Form1UiState(
 
 class Form1ViewModel(
     private val bleService: BleService,
-    private val deviceId: String,
+    private var deviceId: String,
 ): ViewModel() {
     var uiState by mutableStateOf(Form1UiState())
         private set
@@ -33,7 +33,7 @@ class Form1ViewModel(
     private val connDispatchers = Dispatchers.IO
     private val connScope = CoroutineScope(viewModelScope.coroutineContext + connDispatchers)
 
-    private val conn = bleService.getDeviceConn(deviceId, connScope)
+    private var conn = bleService.getDeviceConn(deviceId, connScope)
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun onCleared() {
@@ -44,12 +44,27 @@ class Form1ViewModel(
         super.onCleared()
     }
 
+    fun ensureDevice(id: String) {
+        if (deviceId != id) {
+            deviceId = id
+
+            connScope.launch {
+                conn.disconnect()
+                conn = bleService.getDeviceConn(deviceId, connScope)
+                init()
+            }
+        } else {
+            init()
+        }
+    }
+
     fun init() {
         connScope.launch {
             try {
                 conn.connect()
 
-                uiState = uiState.copy(connected = true, name = conn.getName(), errorText = "")
+                val startCurrent = conn.getStartCurrent()
+                uiState = uiState.copy(connected = true, name = conn.getName(), startCurrent = startCurrent, errorText = "")
             } catch (e: Exception) {
                 Log.d(TAG, e.toString())
                 uiState = uiState.copy(connected = false, name = null, errorText = e.message ?: e.toString())

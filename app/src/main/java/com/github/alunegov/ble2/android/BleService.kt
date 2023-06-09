@@ -1,8 +1,5 @@
 package com.github.alunegov.ble2.android
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import com.benasher44.uuid.uuidFrom
 import com.juul.kable.Advertisement
 import com.juul.kable.Scanner
@@ -10,6 +7,8 @@ import com.juul.kable.peripheral
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 data class Device(
@@ -18,14 +17,19 @@ data class Device(
     val rssi: Int = 0,
 )
 
+data class DevicesModel(
+    val devices: List<Device> = emptyList(),
+    val errorText: String = "",
+)
+
 internal data class IntDevice(
     val adv: Advertisement,
     var lastSeen: Long,
 )
 
 class BleService {
-    var devices by mutableStateOf(listOf<Device>())
-        private set
+    private val _devices = MutableStateFlow(DevicesModel())
+    val devices = _devices.asStateFlow()
 
     private val intDevices = mutableMapOf<String, IntDevice>()
 
@@ -33,7 +37,7 @@ class BleService {
 
     fun startScan(scope: CoroutineScope) {
         if (scanJob?.isActive == true) {
-            //logger?.d(TAG, "already scanning")
+            //Log.d(TAG, "already scanning")
             return
         }
 
@@ -43,6 +47,8 @@ class BleService {
         scanJob = scope.launch {
             try {
                 Scanner().advertisements.collect { adv ->
+                    //Log.d(TAG, adv.toString())
+
                     if (adv.uuids.contains(uuidFrom(DeviceConn.SERVICE_UUID))) {
                         intDevices[adv.address] = IntDevice(adv, System.currentTimeMillis())
                     }
@@ -50,13 +56,13 @@ class BleService {
                     val timeThreshold = System.currentTimeMillis()
                     intDevices.entries.removeIf { (it.value.lastSeen + ServerTimeoutThreshold) <= timeThreshold }
 
-                    devices = intDevices.values.map { Device(it.adv.address, it.adv.name, it.adv.rssi) }
+                    _devices.value = DevicesModel(devices = intDevices.values.map { Device(it.adv.address, it.adv.name, it.adv.rssi) }, errorText = "")
                 }
             } catch (ce: CancellationException) {
-                //logger?.d(TAG, ce.toString())
+                //Log.d(TAG, ce.toString())
             } catch (e: Exception) {
-                //logger?.d(TAG, e.toString())
-                devices = emptyList()  //ServersModel(errorText = e.message ?: e.toString())
+                //Log.d(TAG, e.toString())
+                _devices.value = DevicesModel(devices = emptyList(), errorText = e.message ?: e.toString())
             }
         }
     }
@@ -71,6 +77,8 @@ class BleService {
     }
 
     companion object {
+        private const val TAG = "BleService"
+
         private const val ServerTimeoutThreshold = 5000L
     }
 }

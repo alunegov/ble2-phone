@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Ble2</string>
+    <string name="unknown_server_name">Неизвестно</string>
+    <string name="server_rssi">%d дБ</string>
+    <string name="request_permission">Запросить разрешение</string>
+    <string name="permission_rationale">Связь с устройством осуществляется по Bluetooth. Для корректной работы Bluetooth требуется разрешение Местоположение. Мы не собираем и не используем данные о вашем местоположении. Пожалуйста, разрешите доступ. Также убедитесь, что включены Bluetooth и Локация.</string>
+    <string name="permission_denied">Доступ к Местоположению запрещён. Пожалуйста, разрешите доступ.</string>
+</resources>

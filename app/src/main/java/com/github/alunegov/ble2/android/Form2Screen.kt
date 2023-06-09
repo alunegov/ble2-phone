@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -54,10 +56,13 @@ fun Form2MainScreen(
     onStopClick: () -> Unit,
     onShowResultsClick: () -> Unit,
 ) {
+    val scrollState = rememberScrollState()
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp, 8.dp),
+            .padding(8.dp, 8.dp)
+            .verticalScroll(scrollState),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -176,12 +181,13 @@ fun Form2MainScreen(
         }
     }
 
-    BackHandler(false) {
-        onStopClick()
+    // prevent exit while not fully stopped
+    BackHandler(!uiState.startEnabled) {
+        //onStopClick()
     }
 }
 
-@Preview(showBackground = true)
+@Preview(locale = "ru", showBackground = true)
 @Composable
 fun Form2ScreenMainPreview() {
     Ble2Theme {
@@ -232,7 +238,7 @@ fun Form2ResultsScreen(
 
                     Text("%.3f".format(it.current), Modifier.weight(1.0f), textAlign = TextAlign.Center)
 
-                    Text((it.duration / 1000).toString(), Modifier.weight(1.0f), textAlign = TextAlign.Center)
+                    Text(it.duration.toString(), Modifier.weight(1.0f), textAlign = TextAlign.Center)
                 }
             }
 
@@ -243,7 +249,7 @@ fun Form2ResultsScreen(
                 ) {
                     Text("Общее время, сек:", Modifier.weight(3.0f))
 
-                    Text((duration / 1000).toString(), Modifier.weight(1.0f), textAlign = TextAlign.Center)
+                    Text(duration.toString(), Modifier.weight(1.0f), textAlign = TextAlign.Center)
                 }
             }
         }
@@ -254,17 +260,17 @@ fun Form2ResultsScreen(
     }
 }
 
-@Preview(showBackground = true)
+@Preview(locale = "ru", showBackground = true)
 @Composable
 fun Form2ResultsScreenPreview() {
     Ble2Theme {
         Form2ResultsScreen(
             listOf(
-                CycleStat(Cycle(1u, 3.435f, false),3.434f, 10000L),
-                CycleStat(Cycle(2u, 2.405f, true),2.404f, 20000L),
-                CycleStat(Cycle(3u, 1.683f, false),1.683f, 30000L),
+                CycleStat(Cycle(1u, 3.435f, false),3.434f, 10L),
+                CycleStat(Cycle(2u, 2.405f, true),2.404f, 20L),
+                CycleStat(Cycle(3u, 1.683f, false),1.683f, 30L),
             ),
-            100500000L,
+            100500L,
             {},
         )
     }

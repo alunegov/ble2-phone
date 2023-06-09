@@ -47,7 +47,8 @@ class ConfViewModel(
             try {
                 conn.connect()
 
-                uiState = uiState.copy(errorText = "")
+                val conf = conn.getConf()
+                uiState = uiState.copy(kp = conf.kp, ki = conf.ki, kd = conf.kd, errorText = "")
             } catch (e: Exception) {
                 Log.d(TAG, e.toString())
                 uiState = uiState.copy(errorText = e.message ?: e.toString())
