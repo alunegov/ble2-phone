@@ -5,7 +5,6 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -20,11 +19,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -36,9 +33,8 @@ import androidx.navigation.compose.rememberNavController
 import com.github.alunegov.ble2.android.ui.theme.Ble2Theme
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
-import com.google.accompanist.systemuicontroller.rememberSystemUiController
 
-private const val TAG = "MainActivity"
+//private const val TAG = "MainActivity"
 
 /**
  * MAC-адрес выбранного сервера в окне Список серверов.
@@ -92,7 +88,6 @@ class MainActivity : ComponentActivity() {
  * Основное окно приложения. Реализует работу с разрешениями.
  *
  * @param bleService Реализация [BleService].
- * @param navigateToSettingsScreen Обработчик перехода к настройкам приложения.
  */
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
@@ -176,7 +171,7 @@ fun PermissionNotGrantedPreview() {
 
 @Composable
 fun RootWithNavigation(bleService: BleService) {
-    val navController = rememberNavController();
+    val navController = rememberNavController()
 
     NavHost(navController = navController, startDestination = "form1") {
         composable("form1") {

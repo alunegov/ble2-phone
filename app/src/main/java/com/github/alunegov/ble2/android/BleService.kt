@@ -77,7 +77,7 @@ class BleService {
     }
 
     companion object {
-        private const val TAG = "BleService"
+        //private const val TAG = "BleService"
 
         private const val ServerTimeoutThreshold = 5000L
     }

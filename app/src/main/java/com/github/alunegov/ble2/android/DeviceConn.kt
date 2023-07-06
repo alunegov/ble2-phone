@@ -87,9 +87,9 @@ class DeviceConn(
         }
 
         return ByteBuffer.wrap(raw).order(ByteOrder.LITTLE_ENDIAN).let {
-            val kp = it.getFloat()
-            val ki = it.getFloat()
-            val kd = it.getFloat()
+            val kp = it.float
+            val ki = it.float
+            val kd = it.float
 
             Conf(kp, ki, kd)
         }
@@ -195,15 +195,15 @@ class DeviceConn(
 
         private inline val ByteArray.cycle: Cycle
             get() = ByteBuffer.wrap(this).order(ByteOrder.LITTLE_ENDIAN).let {
-                val num = it.getInt().toUInt()
-                val currentUp = it.getFloat()
+                val num = it.int.toUInt()
+                val currentUp = it.float
                 val polarity = it.get() != 0.toByte()
 
                 Cycle(num, currentUp, polarity)
             }
 
         private inline val ByteArray.current: Float
-            get() = ByteBuffer.wrap(this).order(ByteOrder.LITTLE_ENDIAN).getFloat()
+            get() = ByteBuffer.wrap(this).order(ByteOrder.LITTLE_ENDIAN).float
 
         private inline val ByteArray.cyclesStat: List<CycleStat>
             get() = ByteBuffer.wrap(this).order(ByteOrder.LITTLE_ENDIAN).let { bb ->

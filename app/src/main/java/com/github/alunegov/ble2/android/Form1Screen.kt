@@ -18,7 +18,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -179,7 +178,7 @@ fun Form1ScreenPreview() {
             Form1UiState(false, null, 381.7f, 0.45f, 0.0f, errorText = "Error"),
             {},
             {},
-            { _, _ -> Unit},
+            { _, _ -> Unit },
             {},
         )
     }

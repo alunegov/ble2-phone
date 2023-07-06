@@ -15,7 +15,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.Exception
 import kotlin.time.ExperimentalTime
-import kotlin.time.TimeSource
 
 data class Form2UiState(
     val startCurrent: Float = 1.0f,
@@ -33,7 +32,6 @@ data class Form2UiState(
     val errorText: String = "",
 )
 
-@OptIn(ExperimentalTime::class)
 class Form2ViewModel(
     private val bleService: BleService,
     private val deviceId: String,
