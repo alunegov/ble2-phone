@@ -21,6 +21,13 @@ data class Cycle(
     val polarity: Boolean = false,
 )
 
+data class CycleStat(
+    val num: UInt,
+    val currentUp: Float,
+    val current: Float,
+    val duration: Long,
+)
+
 enum class State {
     NoVoltageOffset,  // Не установлено смещение напряжения АЦП
     MakeSchema,       // Соберите цепь размагничивания
@@ -83,6 +90,7 @@ class DeviceConn(
             val kp = it.getFloat()
             val ki = it.getFloat()
             val kd = it.getFloat()
+
             Conf(kp, ki, kd)
         }
     }
@@ -94,6 +102,7 @@ class DeviceConn(
             putFloat(conf.kp)
             putFloat(conf.ki)
             putFloat(conf.kd)
+
             array()
         }
 
@@ -147,6 +156,15 @@ class DeviceConn(
         return raw.current
     }
 
+    suspend fun getCyclesStat(): List<CycleStat> {
+        val raw = periph.read(characteristicOf(SERVICE_UUID, CYCLES_STAT_CHR_UUID))
+        if (raw.isEmpty()) {
+            return emptyList()
+        }
+
+        return raw.cyclesStat
+    }
+
     companion object {
         internal const val SERVICE_UUID = "ABAEBF19-EDE9-497D-A91D-0EF8B66A9904"
         internal const val CONF_CHR_UUID = "ABAEBF19-EDE9-497D-A91D-0EF8B66A9914"
@@ -155,6 +173,7 @@ class DeviceConn(
         internal const val STATE_CHR_UUID = "ABAEBF19-EDE9-497D-A91D-0EF8B66A9944"
         internal const val CYCLE_CHR_UUID = "ABAEBF19-EDE9-497D-A91D-0EF8B66A9954"
         internal const val CURRENT_CHR_UUID = "ABAEBF19-EDE9-497D-A91D-0EF8B66A9964"
+        internal const val CYCLES_STAT_CHR_UUID = "ABAEBF19-EDE9-497D-A91D-0EF8B66A9974"
 
         private val StateChr = characteristicOf(
             service = SERVICE_UUID,
@@ -177,13 +196,27 @@ class DeviceConn(
         private inline val ByteArray.cycle: Cycle
             get() = ByteBuffer.wrap(this).order(ByteOrder.LITTLE_ENDIAN).let {
                 val num = it.getInt().toUInt()
-                val current = it.getFloat()
+                val currentUp = it.getFloat()
                 val polarity = it.get() != 0.toByte()
-                Cycle(num, current, polarity)
+
+                Cycle(num, currentUp, polarity)
             }
 
         private inline val ByteArray.current: Float
             get() = ByteBuffer.wrap(this).order(ByteOrder.LITTLE_ENDIAN).getFloat()
 
+        private inline val ByteArray.cyclesStat: List<CycleStat>
+            get() = ByteBuffer.wrap(this).order(ByteOrder.LITTLE_ENDIAN).let { bb ->
+                val cyclesCount = (this.size - Long.SIZE_BYTES) / 20
+
+                (1..cyclesCount).map {
+                    val num = bb.int.toUInt()
+                    val currentUp = bb.float
+                    val current = bb.float
+                    val duration = bb.long
+
+                    CycleStat(num, currentUp, current, duration)
+                }.toList()
+            }
     }
 }

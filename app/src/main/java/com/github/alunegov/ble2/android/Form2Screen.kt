@@ -232,9 +232,9 @@ fun Form2ResultsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(it.cycle.num.toString(), Modifier.weight(1.0f), textAlign = TextAlign.Center)
+                    Text(it.num.toString(), Modifier.weight(1.0f), textAlign = TextAlign.Center)
 
-                    Text("%.3f".format(it.cycle.currentUp), Modifier.weight(1.0f), textAlign = TextAlign.Center)
+                    Text("%.3f".format(it.currentUp), Modifier.weight(1.0f), textAlign = TextAlign.Center)
 
                     Text("%.3f".format(it.current), Modifier.weight(1.0f), textAlign = TextAlign.Center)
 
@@ -266,9 +266,9 @@ fun Form2ResultsScreenPreview() {
     Ble2Theme {
         Form2ResultsScreen(
             listOf(
-                CycleStat(Cycle(1u, 3.435f, false),3.434f, 10L),
-                CycleStat(Cycle(2u, 2.405f, true),2.404f, 20L),
-                CycleStat(Cycle(3u, 1.683f, false),1.683f, 30L),
+                CycleStat(1u, 3.435f,3.434f, 10L),
+                CycleStat(2u, 2.405f,2.404f, 20L),
+                CycleStat(3u, 1.683f,1.683f, 30L),
             ),
             100500L,
             {},

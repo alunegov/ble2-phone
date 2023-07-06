@@ -33,12 +33,6 @@ data class Form2UiState(
     val errorText: String = "",
 )
 
-data class CycleStat(
-    val cycle: Cycle,
-    val current: Float,
-    val duration: Long,
-)
-
 @OptIn(ExperimentalTime::class)
 class Form2ViewModel(
     private val bleService: BleService,
@@ -55,11 +49,6 @@ class Form2ViewModel(
     private var stateCollectJob: Job? = null
     private var cycleCollectJob: Job? = null
     private var currentCollectJob: Job? = null
-
-    private val cycles = arrayListOf<CycleStat>()
-    private var cycle = Cycle()
-    private var cycleMaxCurrent = 0.0f
-    private var cycleStartTime = TimeSource.Monotonic.markNow()
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun onCleared() {
@@ -116,13 +105,15 @@ class Form2ViewModel(
                         if (idle) {
                             val ok = state == State.CyclesEnded
                             if (ok) {
+                                val cyclesStat = conn.getCyclesStat()
+
                                 uiState = uiState.copy(
                                     state = state.toString(),
                                     startEnabled = true,
                                     stopEnabled = false,
                                     resultsAvail = true,
-                                    results = cycles,
-                                    resultsDuration = cycles.sumOf { it.duration },
+                                    results = cyclesStat,
+                                    resultsDuration = cyclesStat.sumOf { it.duration },
                                     showingResults = false,
                                     errorText = "",
                                 )
@@ -151,14 +142,6 @@ class Form2ViewModel(
             cycleCollectJob = connScope.launch {
                 try {
                     conn.cycle.collect {
-                        if (it.num > 1u) {
-                            val duration = (TimeSource.Monotonic.markNow() - cycleStartTime).inWholeSeconds
-                            cycles.add(CycleStat(cycle, cycleMaxCurrent, duration))
-                        }
-                        cycle = it
-                        cycleMaxCurrent = 0.0f
-                        cycleStartTime = TimeSource.Monotonic.markNow()
-
                         uiState = uiState.copy(
                             cycleNum = it.num,
                             currentUp = it.currentUp,
@@ -176,10 +159,6 @@ class Form2ViewModel(
             currentCollectJob = connScope.launch {
                 try {
                     conn.current.collect {
-                        if (cycleMaxCurrent < it) {
-                            cycleMaxCurrent = it
-                        }
-
                         uiState = uiState.copy(current = it, errorText = "")
                     }
                 } catch (e: Exception) {
@@ -201,11 +180,6 @@ class Form2ViewModel(
     }
 
     fun start() {
-        cycles.clear()
-        cycle = Cycle()
-        cycleMaxCurrent = 0.0f
-        cycleStartTime = TimeSource.Monotonic.markNow()
-
         uiState = uiState.copy(
             state = "",
             startEnabled = false,
