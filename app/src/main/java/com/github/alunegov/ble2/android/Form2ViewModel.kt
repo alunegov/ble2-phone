@@ -1,5 +1,7 @@
 package com.github.alunegov.ble2.android
 
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,9 +62,12 @@ class Form2ViewModel(
 
     private val reconnectDelay = AtomicInteger()
 
+    private val toneGen = ToneGenerator(AudioManager.STREAM_MUSIC, ToneGenerator.MAX_VOLUME)
+
     @OptIn(DelicateCoroutinesApi::class)
     override fun onCleared() {
         Log.d(TAG, "onCleared")
+        toneGen.release()
         deinit()
         GlobalScope.launch(connDispatchers) {
             conn.disconnect()
@@ -144,6 +149,11 @@ class Form2ViewModel(
                 conn.state.collect { state ->
                     val idle = (state != State.InTest) && (state != State.InMain)
                     if (idle) {
+                        if ((state == State.MakeSchema) || (state == State.CantSetCurrent) ||
+                                (state == State.CyclesEnded) || (state == State.CyclesAbortedAdcError)) {
+                            playSound()
+                        }
+
                         val ok = state == State.CyclesEnded
                         if (ok) {
                             val cyclesStat = conn.getCyclesStat()
@@ -257,6 +267,10 @@ class Form2ViewModel(
 
     fun hideResults() {
         uiState = uiState.copy(showingResults = false)
+    }
+
+    fun playSound() {
+        toneGen.startTone(ToneGenerator.TONE_PROP_PROMPT)
     }
 
     companion object {
