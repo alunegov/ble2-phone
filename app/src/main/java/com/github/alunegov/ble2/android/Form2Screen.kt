@@ -42,8 +42,7 @@ fun Form2Screen(
         )
     } else {
         Form2ResultsScreen(
-            items = uiState.results,
-            duration = uiState.resultsDuration,
+            uiState,
             onHideResultsClick,
         )
     }
@@ -179,10 +178,12 @@ fun Form2MainScreen(
         if (uiState.errorText.isNotEmpty()) {
             Text(uiState.errorText, color = MaterialTheme.colorScheme.error)
         }
+
+        Text(uiState.connStateText, color = MaterialTheme.colorScheme.secondary)
     }
 
     // prevent exit while not fully stopped
-    BackHandler(!uiState.startEnabled) {
+    BackHandler(uiState.connected && !uiState.startEnabled) {
         //onStopClick()
     }
 }
@@ -202,8 +203,7 @@ fun Form2ScreenMainPreview() {
 
 @Composable
 fun Form2ResultsScreen(
-    items: List<CycleStat>,
-    duration: Long,
+    uiState: Form2UiState,
     onHideResultsClick: () -> Unit,
 ) {
     Column(
@@ -227,7 +227,7 @@ fun Form2ResultsScreen(
         LazyColumn(
             modifier = Modifier.fillMaxWidth(),
         ) {
-            items(items) {
+            items(uiState.results) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -249,10 +249,12 @@ fun Form2ResultsScreen(
                 ) {
                     Text("Общее время, сек:", Modifier.weight(3.0f))
 
-                    Text(duration.toString(), Modifier.weight(1.0f), textAlign = TextAlign.Center)
+                    Text(uiState.resultsDuration.toString(), Modifier.weight(1.0f), textAlign = TextAlign.Center)
                 }
             }
         }
+
+        Text(uiState.connStateText, color = MaterialTheme.colorScheme.secondary)
     }
 
     BackHandler(true) {
@@ -265,12 +267,15 @@ fun Form2ResultsScreen(
 fun Form2ResultsScreenPreview() {
     Ble2Theme {
         Form2ResultsScreen(
-            listOf(
-                CycleStat(1u, 3.435f,3.434f, 10L),
-                CycleStat(2u, 2.405f,2.404f, 20L),
-                CycleStat(3u, 1.683f,1.683f, 30L),
+            Form2UiState(
+                results = listOf(
+                    CycleStat(1u, 3.435f,3.434f, 10L),
+                    CycleStat(2u, 2.405f,2.404f, 20L),
+                    CycleStat(3u, 1.683f,1.683f, 30L),
+                ),
+                resultsDuration = 100500L,
+                errorText = "Error",
             ),
-            100500L,
             {},
         )
     }

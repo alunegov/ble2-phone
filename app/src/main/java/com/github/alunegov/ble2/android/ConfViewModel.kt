@@ -50,7 +50,7 @@ class ConfViewModel(
                 val conf = conn.getConf()
                 uiState = uiState.copy(kp = conf.kp, ki = conf.ki, kd = conf.kd, errorText = "")
             } catch (e: Exception) {
-                Log.d(TAG, e.toString())
+                Log.w(TAG, e.toString())
                 uiState = uiState.copy(errorText = e.message ?: e.toString())
             }
         }
@@ -66,7 +66,7 @@ class ConfViewModel(
                 conn.setConf(Conf(kp, ki, kd))
                 uiState = uiState.copy(saveState = true, errorText = "")
             } catch (e: Exception) {
-                Log.d(TAG, e.toString())
+                Log.w(TAG, e.toString())
                 uiState = uiState.copy(saveState = false, errorText = e.message ?: e.toString())
             }
         }

@@ -7,16 +7,24 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.juul.kable.ConnectionLostException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.Exception
 import kotlin.time.ExperimentalTime
 
 data class Form2UiState(
+    val connected: Boolean = false,
     val startCurrent: Float = 1.0f,
     val cycleNum: UInt = 1u,
     val currentUp: Float = 0.0f,
@@ -30,6 +38,7 @@ data class Form2UiState(
     val resultsDuration: Long = 0L,
     val showingResults: Boolean = false,
     val errorText: String = "",
+    val connStateText: String = "",
 )
 
 class Form2ViewModel(
@@ -44,9 +53,12 @@ class Form2ViewModel(
 
     private val conn = bleService.getDeviceConn(deviceId, connScope)
 
+    private var autoReconnectJob: Job? = null
     private var stateCollectJob: Job? = null
     private var cycleCollectJob: Job? = null
     private var currentCollectJob: Job? = null
+
+    private val reconnectDelay = AtomicInteger()
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun onCleared() {
@@ -58,18 +70,38 @@ class Form2ViewModel(
         super.onCleared()
     }
 
-    fun init() {
+    private fun enableAutoReconnect() {
+        if (autoReconnectJob?.isActive != true) {
+            autoReconnectJob = conn.connState
+                .onEach {
+                    Log.d(TAG, "state=${it.toString()}")
+                    uiState = uiState.copy(connStateText = it.toString())
+                }
+                .filter { it is com.juul.kable.State.Disconnected }
+                .onEach {
+                    val delayMs = reconnectDelay.addAndGet(ReconnectDelayDelta).toLong()
+                    Log.i(TAG, "Waiting $delayMs ms to reconnect...")
+                    delay(delayMs);
+                    connect();
+                }
+                .launchIn(connScope)
+        }
+    }
+
+    private fun connect() {
         connScope.launch {
             try {
                 conn.connect()
 
                 val startCurrent = conn.getStartCurrent()
                 val state = conn.getState()
+
                 val idle = (state != State.InTest) && (state != State.InMain)
                 if (idle) {
                     uiState = uiState.copy(
+                        connected = true,
                         startCurrent = startCurrent,
-                        state = "",//state.toString(),
+                        state = state.toString(),
                         startEnabled = true,
                         stopEnabled = false,
                         errorText = "",
@@ -77,7 +109,9 @@ class Form2ViewModel(
                 } else {
                     val cycle = conn.getCycle()
                     val current = conn.getCurrent()
+
                     uiState = uiState.copy(
+                        connected = true,
                         startCurrent = startCurrent,
                         cycleNum = cycle.num,
                         currentUp = cycle.currentUp,
@@ -89,79 +123,76 @@ class Form2ViewModel(
                         errorText = "",
                     )
                 }
+
+                reconnectDelay.set(0)
             } catch (e: Exception) {
-                Log.d(TAG, e.toString())
-                uiState = uiState.copy(errorText = e.message ?: e.toString())
+                Log.w(TAG, e.toString())
+                uiState = uiState.copy(connected = false, startEnabled = false, stopEnabled = false, errorText = e.message ?: e.toString())
             }
         }
+    }
+
+    fun init() {
+        Log.d(TAG, "init")
+
+        enableAutoReconnect()
+
+        connect()
 
         if (stateCollectJob?.isActive != true) {
             stateCollectJob = connScope.launch {
-                try {
-                    conn.state.collect {state ->
-                        val idle = (state != State.InTest) && (state != State.InMain)
-                        if (idle) {
-                            val ok = state == State.CyclesEnded
-                            if (ok) {
-                                val cyclesStat = conn.getCyclesStat()
+                conn.state.collect { state ->
+                    val idle = (state != State.InTest) && (state != State.InMain)
+                    if (idle) {
+                        val ok = state == State.CyclesEnded
+                        if (ok) {
+                            val cyclesStat = conn.getCyclesStat()
 
-                                uiState = uiState.copy(
-                                    state = state.toString(),
-                                    startEnabled = true,
-                                    stopEnabled = false,
-                                    resultsAvail = true,
-                                    results = cyclesStat,
-                                    resultsDuration = cyclesStat.sumOf { it.duration },
-                                    showingResults = false,
-                                    errorText = "",
-                                )
-                            } else {
-                                uiState = uiState.copy(
-                                    state = state.toString(),
-                                    startEnabled = true,
-                                    stopEnabled = false,
-                                    errorText = "",
-                                )
-                            }
+                            uiState = uiState.copy(
+                                state = state.toString(),
+                                startEnabled = true,
+                                stopEnabled = false,
+                                resultsAvail = true,
+                                results = cyclesStat,
+                                resultsDuration = cyclesStat.sumOf { it.duration },
+                                showingResults = false,
+                                errorText = "",
+                            )
                         } else {
                             uiState = uiState.copy(
                                 state = state.toString(),
+                                startEnabled = true,
+                                stopEnabled = false,
                                 errorText = "",
                             )
                         }
-                    }
-                } catch (e: Exception) {
-                    Log.d(TAG, e.toString())
-                    uiState = uiState.copy(errorText = e.message ?: e.toString())
-                }
-            }
-        }
-        if (cycleCollectJob?.isActive != true) {
-            cycleCollectJob = connScope.launch {
-                try {
-                    conn.cycle.collect {
+                    } else {
                         uiState = uiState.copy(
-                            cycleNum = it.num,
-                            currentUp = it.currentUp,
-                            polarity = it.polarity,
+                            state = state.toString(),
                             errorText = "",
                         )
                     }
-                } catch (e: Exception) {
-                    Log.d(TAG, e.toString())
-                    uiState = uiState.copy(errorText = e.message ?: e.toString())
                 }
             }
         }
+
+        if (cycleCollectJob?.isActive != true) {
+            cycleCollectJob = connScope.launch {
+                conn.cycle.collect {
+                    uiState = uiState.copy(
+                        cycleNum = it.num,
+                        currentUp = it.currentUp,
+                        polarity = it.polarity,
+                        errorText = "",
+                    )
+                }
+            }
+        }
+
         if (currentCollectJob?.isActive != true) {
             currentCollectJob = connScope.launch {
-                try {
-                    conn.current.collect {
-                        uiState = uiState.copy(current = it, errorText = "")
-                    }
-                } catch (e: Exception) {
-                    Log.d(TAG, e.toString())
-                    uiState = uiState.copy(errorText = e.message ?: e.toString())
+                conn.current.collect {
+                    uiState = uiState.copy(current = it, errorText = "")
                 }
             }
         }
@@ -169,10 +200,16 @@ class Form2ViewModel(
 
     fun deinit() {
         Log.d(TAG, "deinit")
+
+        autoReconnectJob?.cancel()
+        autoReconnectJob = null
+
         stateCollectJob?.cancel()
         stateCollectJob = null
+
         cycleCollectJob?.cancel()
         cycleCollectJob = null
+
         currentCollectJob?.cancel()
         currentCollectJob = null
     }
@@ -192,7 +229,7 @@ class Form2ViewModel(
 
                 conn.start()
             } catch (e: Exception) {
-                Log.d(TAG, e.toString())
+                Log.w(TAG, e.toString())
                 uiState = uiState.copy(startEnabled = true, stopEnabled = false, errorText = e.message ?: e.toString())
             }
         }
@@ -208,7 +245,7 @@ class Form2ViewModel(
                 conn.stop()
                 //uiState = uiState.copy(startEnabled = false, stopEnabled = false, errorText = "")
             } catch (e: Exception) {
-                Log.d(TAG, e.toString())
+                Log.w(TAG, e.toString())
                 uiState = uiState.copy(startEnabled = false, stopEnabled = true, errorText = e.message ?: e.toString())
             }
         }
@@ -224,6 +261,8 @@ class Form2ViewModel(
 
     companion object {
         private const val TAG = "Form2ViewModel"
+
+        private const val ReconnectDelayDelta = 2000;
     }
 }
 

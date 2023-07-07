@@ -186,7 +186,9 @@ fun RootWithNavigation(bleService: BleService) {
 
             DisposableEffect(true) {
                 viewModel.ensureDevice(gAddress)
-                onDispose {}
+                onDispose {
+                    viewModel.deinit()
+                }
             }
 
             Form1Screen(
@@ -209,7 +211,7 @@ fun RootWithNavigation(bleService: BleService) {
             }
 
             SelectDeviceScreen(
-                viewModel.uiState.collectAsState().value,  // TODO: WTF
+                viewModel.uiState.collectAsState().value,
                 {
                     gAddress = it
                     navController.popBackStack()

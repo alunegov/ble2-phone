@@ -7,11 +7,19 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.juul.kable.ConnectionLostException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicInteger
 
 data class Form1UiState(
     val connected: Boolean = false,
@@ -21,6 +29,7 @@ data class Form1UiState(
     val startCurrent: Float = 0.0f,
     val saveState: Boolean = false,
     val errorText: String = "",
+    val connStateText: String = "",
 )
 
 class Form1ViewModel(
@@ -35,9 +44,14 @@ class Form1ViewModel(
 
     private var conn = bleService.getDeviceConn(deviceId, connScope)
 
+    private var autoReconnectJob: Job? = null
+
+    private val reconnectDelay = AtomicInteger()
+
     @OptIn(DelicateCoroutinesApi::class)
     override fun onCleared() {
         Log.d(TAG, "onCleared")
+        deinit()
         GlobalScope.launch(connDispatchers) {
             conn.disconnect()
         }
@@ -49,8 +63,11 @@ class Form1ViewModel(
             deviceId = id
 
             connScope.launch {
+                deinit()
                 conn.disconnect()
+
                 conn = bleService.getDeviceConn(deviceId, connScope)
+
                 init()
             }
         } else {
@@ -58,25 +75,68 @@ class Form1ViewModel(
         }
     }
 
-    fun init() {
+    private fun enableAutoReconnect() {
+        if (autoReconnectJob?.isActive != true) {
+            autoReconnectJob = conn.connState
+                .onEach {
+                    Log.d(TAG, String.format("state=%s", it.toString()))
+                    uiState = uiState.copy(connStateText = it.toString())
+                }
+                .filter { it is com.juul.kable.State.Disconnected }
+                .onEach {
+                    val delayMs = reconnectDelay.addAndGet(ReconnectDelayDelta).toLong()
+                    Log.i(TAG, "Waiting $delayMs ms to reconnect...")
+                    delay(delayMs);
+                    connect();
+                }
+                .launchIn(connScope)
+        }
+    }
+
+    private fun connect() {
         connScope.launch {
             try {
                 conn.connect()
 
+                val state = conn.getState()
                 val startCurrent = conn.getStartCurrent()
-                uiState = uiState.copy(connected = true, name = conn.getName(), startCurrent = startCurrent, errorText = "")
+
+                uiState = uiState.copy(
+                    connected = true,
+                    name = conn.getName(),
+                    startCurrent = startCurrent,
+                    saveState = (state == State.InTest) || (state == State.InMain),  // idle?
+                    errorText = "",
+                )
+
+                reconnectDelay.set(0)
             } catch (e: Exception) {
-                Log.d(TAG, e.toString())
+                Log.w(TAG, e.toString())
                 uiState = uiState.copy(connected = false, name = null, errorText = e.message ?: e.toString())
             }
         }
+    }
+
+    fun init() {
+        Log.d(TAG, "init")
+
+        enableAutoReconnect()
+
+        connect()
+    }
+
+    fun deinit() {
+        Log.d(TAG, "deinit")
+
+        autoReconnectJob?.cancel()
+        autoReconnectJob = null
     }
 
     fun calcStartCurrent(i1: Float, i2: Float) {
         uiState = uiState.copy(i1 = i1, i2 = i2)
 
         val startCurrent = (i2 * i1) / 100 * 2
-        uiState = uiState.copy(i1 = i1, i2 = i2, startCurrent = startCurrent)
+        uiState = uiState.copy(startCurrent = startCurrent)
     }
 
     fun further(startCurrent: Float) {
@@ -89,7 +149,7 @@ class Form1ViewModel(
                 conn.setStartCurrent(startCurrent)
                 uiState = uiState.copy(saveState = true, errorText = "")
             } catch (e: Exception) {
-                Log.d(TAG, e.toString())
+                Log.w(TAG, e.toString())
                 uiState = uiState.copy(saveState = false, errorText = e.message ?: e.toString())
             }
         }
@@ -101,6 +161,8 @@ class Form1ViewModel(
 
     companion object {
         private const val TAG = "Form1ViewModel"
+
+        private const val ReconnectDelayDelta = 2000;
     }
 }
 

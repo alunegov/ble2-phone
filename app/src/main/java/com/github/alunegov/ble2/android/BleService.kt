@@ -59,9 +59,9 @@ class BleService {
                     _devices.value = DevicesModel(devices = intDevices.values.map { Device(it.adv.address, it.adv.name, it.adv.rssi) }, errorText = "")
                 }
             } catch (ce: CancellationException) {
-                //Log.d(TAG, ce.toString())
+                //Log.w(TAG, ce.toString())
             } catch (e: Exception) {
-                //Log.d(TAG, e.toString())
+                //Log.w(TAG, e.toString())
                 _devices.value = DevicesModel(devices = emptyList(), errorText = e.message ?: e.toString())
             }
         }

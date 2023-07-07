@@ -167,6 +167,8 @@ fun Form1Screen(
         if (uiState.errorText.isNotEmpty()) {
             Text(uiState.errorText, color = MaterialTheme.colorScheme.error)
         }
+
+        Text(uiState.connStateText, color = MaterialTheme.colorScheme.secondary)
     }
 }
 

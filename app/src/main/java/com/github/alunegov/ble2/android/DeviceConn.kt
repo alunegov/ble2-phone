@@ -58,7 +58,7 @@ enum class State {
 class DeviceConn(
     private val periph: Peripheral,
 ) {
-    //val connState = periph.state
+    val connState = periph.state
 
     val state: Flow<State> = periph.observe(StateChr).map { it.state }
 
