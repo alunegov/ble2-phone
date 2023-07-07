@@ -11,7 +11,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -46,11 +50,13 @@ fun Form1Screen(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp, 8.dp)
+            .padding(8.dp, 0.dp)
             .verticalScroll(scrollState),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(0.dp, 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Bluetooth связь")
@@ -64,7 +70,7 @@ fun Form1Screen(
             Button(
                 onClick = onSelectDeviceClick,
             ) {
-                Text("d")
+                Icon(Icons.Filled.List, contentDescription = "Список приборов")
             }
 
             Spacer(Modifier.size(16.dp))
@@ -73,14 +79,16 @@ fun Form1Screen(
                 onClick = onSetConfClick,
                 enabled = uiState.connected,
             ) {
-                Text("c")
+                Icon(Icons.Filled.Settings, contentDescription = "Параметры прибора")
             }
         }
 
         Text("Введите данные:")
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(0.dp, 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("I (ВН) ном., А", Modifier.weight(1.0f))
@@ -99,7 +107,9 @@ fun Form1Screen(
         }
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(0.dp, 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Ixx (ВН), %", Modifier.weight(1.0f))
@@ -127,12 +137,15 @@ fun Form1Screen(
                     Log.d(TAG, e.message ?: e.toString())
                 }
             },
+            //modifier = Modifier.padding(0.dp, 8.dp),
         ) {
             Text("Расчитать")
         }
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(0.dp, 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("I разм. нач., А", Modifier.weight(1.0f))
@@ -159,6 +172,7 @@ fun Form1Screen(
                     Log.d(TAG, e.message ?: e.toString())
                 }
             },
+            //modifier = Modifier.padding(0.dp, 8.dp),
             enabled = uiState.connected,
         ) {
             Text("Продолжить")
@@ -168,7 +182,7 @@ fun Form1Screen(
             Text(uiState.errorText, color = MaterialTheme.colorScheme.error)
         }
 
-        Text(uiState.connStateText, color = MaterialTheme.colorScheme.secondary)
+        //Text(uiState.connStateText, color = MaterialTheme.colorScheme.secondary)
     }
 }
 

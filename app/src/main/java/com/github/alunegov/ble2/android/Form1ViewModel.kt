@@ -7,14 +7,12 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.juul.kable.ConnectionLostException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -29,7 +27,7 @@ data class Form1UiState(
     val startCurrent: Float = 0.0f,
     val saveState: Boolean = false,
     val errorText: String = "",
-    val connStateText: String = "",
+    //val connStateText: String = "",
 )
 
 class Form1ViewModel(
@@ -78,10 +76,10 @@ class Form1ViewModel(
     private fun enableAutoReconnect() {
         if (autoReconnectJob?.isActive != true) {
             autoReconnectJob = conn.connState
-                .onEach {
+                /*.onEach {
                     Log.d(TAG, String.format("state=%s", it.toString()))
                     uiState = uiState.copy(connStateText = it.toString())
-                }
+                }*/
                 .filter { it is com.juul.kable.State.Disconnected }
                 .onEach {
                     val delayMs = reconnectDelay.addAndGet(ReconnectDelayDelta).toLong()

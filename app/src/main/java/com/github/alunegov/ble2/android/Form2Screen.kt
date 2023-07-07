@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.github.alunegov.ble2.android.ui.theme.Ble2Theme
+import java.text.NumberFormat
 
 @Composable
 fun Form2Screen(
@@ -55,20 +56,24 @@ fun Form2MainScreen(
     onStopClick: () -> Unit,
     onShowResultsClick: () -> Unit,
 ) {
+    val numFmt = NumberFormat.getInstance().apply {
+        maximumFractionDigits = 5
+    }
+
     val scrollState = rememberScrollState()
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp, 8.dp)
+            .padding(8.dp, 0.dp)
             .verticalScroll(scrollState),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(0.dp, 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedTextField(
-                value = uiState.startCurrent.toString(),
+                value = numFmt.format(uiState.startCurrent),
                 onValueChange = {},
                 modifier = Modifier.width(150.dp),
                 readOnly = true,
@@ -80,7 +85,7 @@ fun Form2MainScreen(
         }
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(0.dp, 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedTextField(
@@ -96,11 +101,11 @@ fun Form2MainScreen(
         }
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(0.dp, 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedTextField(
-                value = uiState.currentUp.toString(),
+                value = numFmt.format(uiState.currentUp),
                 onValueChange = {},
                 modifier = Modifier.width(150.dp),
                 readOnly = true,
@@ -112,7 +117,7 @@ fun Form2MainScreen(
         }
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(0.dp, 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedTextField(
@@ -128,11 +133,11 @@ fun Form2MainScreen(
         }
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(0.dp, 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedTextField(
-                value = uiState.current.toString(),
+                value = numFmt.format(uiState.current),
                 onValueChange = {},
                 modifier = Modifier.width(150.dp),
                 readOnly = true,
@@ -144,6 +149,7 @@ fun Form2MainScreen(
         }
 
         Row(
+            modifier = Modifier.fillMaxWidth().padding(0.dp, 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(uiState.state, Modifier.weight(1.0f))
@@ -157,7 +163,7 @@ fun Form2MainScreen(
         }
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(0.dp, 8.dp),
             horizontalArrangement = Arrangement.SpaceAround,
         ) {
             Button(
@@ -179,7 +185,7 @@ fun Form2MainScreen(
             Text(uiState.errorText, color = MaterialTheme.colorScheme.error)
         }
 
-        Text(uiState.connStateText, color = MaterialTheme.colorScheme.secondary)
+        //Text(uiState.connStateText, color = MaterialTheme.colorScheme.secondary)
     }
 
     // prevent exit while not fully stopped
@@ -209,10 +215,10 @@ fun Form2ResultsScreen(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp, 8.dp),
+            .padding(8.dp, 0.dp),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(0.dp, 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Цикл", Modifier.weight(1.0f), textAlign = TextAlign.Center)
@@ -221,7 +227,7 @@ fun Form2ResultsScreen(
 
             Text("Установленный ток, А", Modifier.weight(1.0f), textAlign = TextAlign.Center)
 
-            Text("Время цикла, сек", Modifier.weight(1.0f), textAlign = TextAlign.Center)
+            Text("Время цикла, с", Modifier.weight(1.0f), textAlign = TextAlign.Center)
         }
 
         LazyColumn(
@@ -229,7 +235,7 @@ fun Form2ResultsScreen(
         ) {
             items(uiState.results) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(0.dp, 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(it.num.toString(), Modifier.weight(1.0f), textAlign = TextAlign.Center)
@@ -244,17 +250,15 @@ fun Form2ResultsScreen(
 
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(0.dp, 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("Общее время, сек:", Modifier.weight(3.0f))
+                    Text("Общее время, с:", Modifier.weight(3.0f))
 
                     Text(uiState.resultsDuration.toString(), Modifier.weight(1.0f), textAlign = TextAlign.Center)
                 }
             }
         }
-
-        Text(uiState.connStateText, color = MaterialTheme.colorScheme.secondary)
     }
 
     BackHandler(true) {

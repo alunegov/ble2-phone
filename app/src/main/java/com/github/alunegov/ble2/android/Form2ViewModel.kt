@@ -9,21 +9,18 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.juul.kable.ConnectionLostException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.Exception
-import kotlin.time.ExperimentalTime
 
 data class Form2UiState(
     val connected: Boolean = false,
@@ -40,7 +37,7 @@ data class Form2UiState(
     val resultsDuration: Long = 0L,
     val showingResults: Boolean = false,
     val errorText: String = "",
-    val connStateText: String = "",
+    //val connStateText: String = "",
 )
 
 class Form2ViewModel(
@@ -78,10 +75,10 @@ class Form2ViewModel(
     private fun enableAutoReconnect() {
         if (autoReconnectJob?.isActive != true) {
             autoReconnectJob = conn.connState
-                .onEach {
+                /*.onEach {
                     Log.d(TAG, "state=${it.toString()}")
                     uiState = uiState.copy(connStateText = it.toString())
-                }
+                }*/
                 .filter { it is com.juul.kable.State.Disconnected }
                 .onEach {
                     val delayMs = reconnectDelay.addAndGet(ReconnectDelayDelta).toLong()
@@ -106,7 +103,7 @@ class Form2ViewModel(
                     uiState = uiState.copy(
                         connected = true,
                         startCurrent = startCurrent,
-                        state = state.toString(),
+                        state = "",//state.toString(),
                         startEnabled = true,
                         stopEnabled = false,
                         errorText = "",

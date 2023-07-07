@@ -43,14 +43,14 @@ fun ConfScreen(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp, 8.dp)
+            .padding(8.dp, 0.dp)
             .verticalScroll(scrollState),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(0.dp, 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("kp", Modifier.weight(1.0f))
+            Text("Коэффициент P", Modifier.weight(1.0f))
 
             Spacer(Modifier.size(16.dp))
 
@@ -66,10 +66,10 @@ fun ConfScreen(
         }
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(0.dp, 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("ki", Modifier.weight(1.0f))
+            Text("Коэффициент I", Modifier.weight(1.0f))
 
             Spacer(Modifier.size(16.dp))
 
@@ -85,10 +85,10 @@ fun ConfScreen(
         }
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(0.dp, 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("kd", Modifier.weight(1.0f))
+            Text("Коэффициент D", Modifier.weight(1.0f))
 
             Spacer(Modifier.size(16.dp))
 
@@ -114,6 +114,7 @@ fun ConfScreen(
                     Log.d(TAG, e.message ?: e.toString())
                 }
             },
+            //modifier = Modifier.padding(0.dp, 8.dp),
         ) {
             Text("Сохранить")
         }
