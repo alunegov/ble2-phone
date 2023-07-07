@@ -150,7 +150,8 @@ class Form2ViewModel(
                     val idle = (state != State.InTest) && (state != State.InMain)
                     if (idle) {
                         if ((state == State.MakeSchema) || (state == State.CantSetCurrent) ||
-                                (state == State.CyclesEnded) || (state == State.CyclesAbortedAdcError)) {
+                                (state == State.CyclesEnded) || (state == State.CyclesAbortedAdcError) ||
+                                (state == State.CyclesAbortedUser)) {
                             playSound()
                         }
 
